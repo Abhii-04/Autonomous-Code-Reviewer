@@ -9,14 +9,16 @@ from pathlib import Path
 from typing import Any,Annotated,List,Dict
 from deepagents.backends.filesystem import FilesystemBackend
 
-load_dotenv(override=True)
+load_dotenv()
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 llm = ChatOpenAI(
-    api_key = ${{ secrets.DEEPSEEK_API_KEY }},
+    api_key = os.getenv('DEEPSEEK_API_KEY'),
     model = 'deepseek-v4-flash',
-    base_url = "https://api.deepseek.com"
+    base_url = "https://api.deepseek.com",
+    timeout=60,
+    max_retries=1,
 )
 
 tools = [github_tool]
@@ -32,14 +34,16 @@ def orchestrator():
         model = llm,
         tools = tools ,
         system_prompt=orchestrator_prompt,
-        skills = ["/skills"],
-        memory = ["memory/"],
-        backend=FilesystemBackend(root_dir = PROJECT_ROOT),
-        permissions=FilesystemPermission(
-            operations= ["read","write"],
-            paths = ["/reports/"],
-            mode="allow",
-        ),
+        skills = [],
+        memory = ["memory/AGENT.md"],
+        backend=FilesystemBackend(root_dir = PROJECT_ROOT, virtual_mode=True),
+        permissions=[
+            FilesystemPermission(
+                operations= ["read","write"],
+                paths = ["/reports/"],
+                mode="allow",
+            )
+        ],
         subagents = [
             {
                 "name" : "security_checker",
@@ -80,11 +84,14 @@ def orchestrator():
 
 def run_agent(task: str) -> Any:
     agent = orchestrator()
-    return agent.invoke({
-        "messages": [
-            {
-                "role": "user",
-                "content": task,
-            }
-        ]
-    })
+    return agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": task,
+                }
+            ]
+        },
+        config={"recursion_limit": 20},
+    )
