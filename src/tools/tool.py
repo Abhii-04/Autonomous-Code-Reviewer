@@ -13,9 +13,9 @@ load_dotenv(override=True)
 
 
 github_wrapper = GitHubAPIWrapper(
-    github_app_private_key = os.getenv("APP_PRIVATE_KEY"),
-    github_app_id = int(os.getenv("APP_ID")),
-    github_repository = os.getenv('REPOSITORY'),
+    github_app_private_key = ${{ secrets.APP_PRIVATE_KEY }},
+    github_app_id = ${{ secrets.APP_ID }},
+    github_repository = ${{ secrets.REPOSITORY }},
 )
 
 class githubinput(BaseModel):
