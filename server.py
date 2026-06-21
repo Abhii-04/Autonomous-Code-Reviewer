@@ -35,12 +35,7 @@ def webhook():
 
 @app.route("/env")
 def env():
-    return jsonify({
-        "APP_ID": os.getenv("APP_ID"),
-        "INSTALLATION_ID": os.getenv("INSTALLATION_ID"),
-        "HAS_PRIVATE_KEY": os.getenv("APP_PRIVATE_KEY") is not None,
-        "HAS_DEEPSEEK_KEY": os.getenv("DEEPSEEK_API_KEY") is not None,
-    })
+    return print("hello")
 
 
 if __name__ == "__main__":
