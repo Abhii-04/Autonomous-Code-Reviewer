@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 llm = ChatOpenAI(
-    api_key = os.getenv('DEEPSEEK_API_KEY'),
+    api_key = ${{ secrets.DEEPSEEK_API_KEY }},
     model = 'deepseek-v4-flash',
     base_url = "https://api.deepseek.com"
 )
