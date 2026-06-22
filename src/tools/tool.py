@@ -1,74 +1,29 @@
+from langchain_community.tools.github.tool import GitHubAction
 from langchain_community.utilities.github import GitHubAPIWrapper
 import os
 from dotenv import load_dotenv
-from github import Github
+from pathlib import Path
+from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
-from typing import Any,Optional,Type
+from typing import List,Any,Optional,Dict,Annotated,Type
 from pydantic import BaseModel, Field
 
-load_dotenv()
+load_dotenv(override=True)
 
 
-def _env(*names: str) -> Optional[str]:
-    for name in names:
-        value = os.getenv(name)
-        if value:
-            return value
-    return None
-
-
-def create_github_wrapper() -> Any:
-    github_app_id = _env("GITHUB_APP_ID", "APP_ID")
-    github_app_private_key = _env("GITHUB_APP_PRIVATE_KEY", "APP_PRIVATE_KEY")
-    github_repository = _env("GITHUB_REPOSITORY", "REPOSITORY")
-    github_token = _env("GITHUB_TOKEN")
-
-    if github_token and github_repository and not (github_app_id and github_app_private_key):
-        return GitHubTokenWrapper(github_token, github_repository)
-
-    missing = [
-        name
-        for name, value in {
-            "GITHUB_APP_ID": github_app_id,
-            "GITHUB_APP_PRIVATE_KEY": github_app_private_key,
-            "GITHUB_REPOSITORY": github_repository,
-        }.items()
-        if not value
-    ]
-    if missing:
-        raise RuntimeError(f"Missing required GitHub configuration: {', '.join(missing)}")
-
-    return GitHubAPIWrapper(
-        github_app_private_key=github_app_private_key,
-        github_app_id=github_app_id,
-        github_repository=github_repository,
-    )
-
-
-class GitHubTokenWrapper:
-    def __init__(self, token: str, repository: str) -> None:
-        self.github_repo_instance = Github(token).get_repo(repository)
-
-    def run(self, mode: str, query: str) -> str:
-        if mode == "list_open_pull_requests":
-            pull_requests = self.github_repo_instance.get_pulls(state="open")
-            parsed_prs = [
-                {"number": pr.number, "title": pr.title, "base": pr.base.ref, "head": pr.head.ref}
-                for pr in pull_requests
-            ]
-            if parsed_prs:
-                return f"Found {len(parsed_prs)} pull requests:\n{parsed_prs}"
-            return "No open pull requests available"
-
-        raise ValueError("Invalid mode" + mode)
+github_wrapper = GitHubAPIWrapper(
+    github_app_private_key = ${{ secrets.APP_PRIVATE_KEY }},
+    github_app_id = ${{ secrets.APP_ID }},
+    github_repository = ${{ secrets.REPOSITORY }},
+)
 
 class githubinput(BaseModel):
     instructions: str = Field(default="", description="GitHub operation instructions")
 
 class GitHub(BaseTool):
     """Tool for interacting with github api """
-    api_wrapper:Optional[Any] = None
+    api_wrapper:Any
     mode:str="get_pull_requests"
     name: str="list_open_pull_requests"
     description :str =  "Tool for interacting with github repository PR"
@@ -82,11 +37,12 @@ class GitHub(BaseTool):
             #catch any other form of input from LLM
             instructions = " "
         
-        api_wrapper = self.api_wrapper or create_github_wrapper()
-        return api_wrapper.run(self.mode,instructions)
+        return self.api_wrapper.run(self.mode,instructions)
 
 
 
 github_tool = GitHub(
+    api_wrapper=github_wrapper,
     mode="list_open_pull_requests"
 )
+
