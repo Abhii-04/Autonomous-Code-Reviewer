@@ -1,5 +1,5 @@
 from platform import architecture
-from src.tools.tool import github_tool
+from src.tools.github import github_tool
 from src.prompt import github_agent_prompt, orchestrator_prompt,security_agent_prompt,style_agent_prompt,tests_agent_prompt,architecture_agent_prompt
 import os 
 from dotenv import load_dotenv
@@ -8,6 +8,8 @@ from langchain_openai import ChatOpenAI
 from pathlib import Path
 from typing import Any,Annotated,List,Dict
 from deepagents.backends.filesystem import FilesystemBackend
+from src.tools.treesitter import tree_sitter_segmenter
+from langchain_nopii_middleware import NoPIIMiddleware
 
 load_dotenv(override=True)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +21,7 @@ llm = ChatOpenAI(
     base_url = "https://api.deepseek.com"
 )
 
-tools = [github_tool]
+tools = [github_tool, tree_sitter_segmenter]
 git_tool = [github_tool]
 security_tools = []
 architecture_tools = []
@@ -33,13 +35,16 @@ def orchestrator():
         tools = tools ,
         system_prompt=orchestrator_prompt,
         skills = ["/skills"],
-        memory = ["memory/"],
-        backend=FilesystemBackend(root_dir = PROJECT_ROOT),
-        permissions=FilesystemPermission(
-            operations= ["read","write"],
-            paths = ["/reports/"],
-            mode="allow",
-        ),
+        memory = ["memory/AGENT.md"],
+        backend=FilesystemBackend(root_dir = PROJECT_ROOT,virtual_mode=True),
+        middleware=[NoPIIMiddleware(),],
+        permissions=[
+            FilesystemPermission(
+                operations= ["read","write"],
+                paths = ["/reports/"],
+                mode="allow",
+            )
+        ],
         subagents = [
             {
                 "name" : "security_checker",
